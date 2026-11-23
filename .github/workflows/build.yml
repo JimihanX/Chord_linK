@@ -1,4 +1,4 @@
-build.yml# GitHub 에 올리면 Mac / Windows 용 플러그인을 자동으로 빌드합니다.
+# GitHub 에 올리면 Mac / Windows 용 플러그인을 자동으로 빌드합니다.
 # 결과 파일: Actions 탭 → 실행 기록 → Artifacts 에서 zip 다운로드
 name: Build plugins
 
