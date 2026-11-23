@@ -1,0 +1,61 @@
+build.yml# GitHub 에 올리면 Mac / Windows 용 플러그인을 자동으로 빌드합니다.
+# 결과 파일: Actions 탭 → 실행 기록 → Artifacts 에서 zip 다운로드
+name: Build plugins
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  mac:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (Universal: Apple Silicon + Intel)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCL_COPY_PLUGINS=OFF
+      - name: Build
+        run: cmake --build build --config Release -j 4
+      - name: Ad-hoc sign
+        run: |
+          find build -maxdepth 4 -path "*_artefacts/Release/*" \( -name "*.component" -o -name "*.vst3" -o -name "*.clap" -o -name "*.app" \) -print0 |
+            while IFS= read -r -d '' p; do codesign --force --deep -s - "$p"; done
+      - name: Package
+        run: |
+          mkdir -p "out/Chord Link (Mac)"
+          for kind in AU VST3 CLAP Standalone; do
+            for t in ChordLink ChordLinkFX; do
+              src="build/${t}_artefacts/Release/${kind}"
+              if [ -d "$src" ]; then mkdir -p "out/Chord Link (Mac)/${kind}"; cp -R "$src"/. "out/Chord Link (Mac)/${kind}/"; fi
+            done
+          done
+          cp README.md "out/Chord Link (Mac)/"
+          cd out && ditto -c -k --sequesterRsrc --keepParent "Chord Link (Mac)" ../ChordLink-mac.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChordLink-mac
+          path: ChordLink-mac.zip
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build -DCL_COPY_PLUGINS=OFF
+      - name: Build
+        run: cmake --build build --config Release -j 4
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p "out/Chord Link (Windows)"
+          for kind in VST3 CLAP Standalone; do
+            for t in ChordLink ChordLinkFX; do
+              src="build/${t}_artefacts/Release/${kind}"
+              if [ -d "$src" ]; then mkdir -p "out/Chord Link (Windows)/${kind}"; cp -R "$src"/. "out/Chord Link (Windows)/${kind}/"; fi
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChordLink-windows
+          path: out
